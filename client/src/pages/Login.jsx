@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../lib/api';
-import useAuthStore from '../store/useAuthStore';
+import { User, Lock, EyeOff, Eye, ArrowRight } from 'lucide-react';
 
 function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const { login } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,122 +16,159 @@ function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { email, password });
-      const { access_token } = res.data;
-      
-      localStorage.setItem('token', access_token);
-      
-      try {
-        const meRes = await api.get('/me');
-        login(meRes.data, access_token);
-      } catch (meErr) {
-        // Fallback for mocked/broken DB
-        login({ email, role: 'admin' }, access_token);
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Login failed');
+        return;
       }
-      navigate('/employees');
-    } catch (err) {
-      // Allow mock login if backend is down
-      console.warn("Backend login failed, using mock login for UI testing");
-      login({ email, role: 'admin' }, 'mock_token');
-      navigate('/employees');
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/dashboard');
+    } catch {
+      setError('Unable to connect to server');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#111111] flex items-center justify-center p-4 font-sans text-white">
-      <div className="flex flex-col items-center max-w-4xl w-full">
-        {/* Main Layout containing Sign in and Notes */}
-        <div className="flex flex-col md:flex-row items-start justify-center gap-16 w-full mt-10">
-          
-          {/* Sign in Page Card */}
-          <div className="flex flex-col">
-            <h2 className="text-xl font-normal mb-4 font-['Indie_Flower',sans-serif] tracking-wide text-gray-300">Sign in Page</h2>
-            <div className="w-[380px] border border-gray-600 rounded-lg p-8 bg-[#151515]">
-              
-              {/* Logo Box */}
-              <div className="w-full h-12 bg-[#222222] rounded flex items-center justify-center mb-8 border border-gray-700">
-                <span className="text-sm font-['Indie_Flower',sans-serif] text-gray-400">App/Web Logo</span>
+    <div className="min-h-screen bg-odoo-bg flex items-center justify-center px-4 font-outfit">
+      <div className="w-full max-w-[420px]">
+        {/* Main Login Card */}
+        <div
+          className="bg-white rounded-2xl px-10 pt-10 pb-10"
+          style={{
+            boxShadow: '0 10px 40px -10px rgba(113, 75, 103, 0.12), 0 4px 12px -4px rgba(113, 75, 103, 0.05)',
+            border: '1px solid #f0eeef'
+          }}
+        >
+          {/* Logo */}
+          <div className="flex justify-center mb-5">
+            <img
+              src="/favicon.svg"
+              alt="Dayflow HRMS"
+              className="w-[180px] h-[100px] object-contain"
+            />
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-center text-[26px] font-bold text-odoo-text mb-1">
+            Welcome back
+          </h1>
+          <p className="text-center text-odoo-gray text-xs mb-6">
+            Please enter your details to sign in.
+          </p>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs text-center">
+              {error}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Login ID / Email */}
+            <div>
+              <label className="block text-xs font-semibold text-odoo-text mb-1.5">
+                Login ID / Email
+              </label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-odoo-gray">
+                  <User size={16} />
+                </div>
+                <input
+                  id="email-input"
+                  type="text"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your ID or email"
+                  className="clay-input w-full pl-9 pr-4 py-2.5 text-sm text-odoo-text placeholder-odoo-gray/60"
+                  required
+                />
               </div>
+            </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-['Indie_Flower',sans-serif] text-gray-300 mb-2">
-                    Login Id/Email :-
-                  </label>
-                  <input
-                    type="text"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-transparent border border-gray-500 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-400"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-['Indie_Flower',sans-serif] text-gray-300 mb-2">
-                    Password :-
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-transparent border border-gray-500 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-400"
-                    required
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-[#a352cc] hover:bg-[#9142b8] text-black font-semibold py-2.5 rounded text-sm transition-colors"
-                  >
-                    SIGN IN
-                  </button>
-                </div>
-              </form>
-
-              <div className="mt-6 text-center">
-                <a href="/signup" className="text-xs text-gray-400 hover:text-white font-['Indie_Flower',sans-serif]">
-                  Don't have an Account? Sign Up
+            {/* Password */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-odoo-text">
+                  Password
+                </label>
+                <a
+                  href="/create-password"
+                  className="text-[11px] text-odoo-gray hover:text-odoo-purple transition-colors"
+                >
+                  Forgot password?
                 </a>
               </div>
-            </div>
-          </div>
-
-          {/* Instructions / Notes (as seen in wireframe) */}
-          <div className="max-w-md space-y-8 mt-12 hidden md:block">
-            <div className="text-sm text-gray-300 font-['Indie_Flower',sans-serif] leading-relaxed">
-              <p className="mb-4">
-                The Login ID should be automatically generated by the system in the following format:
-                <br/>
-                [OI (First two letters of the employee's first and last name) (year of joining) (serial number of joining)]
-              </p>
-              <p className="mb-2 text-white">Example: OIJODO20220001</p>
-              <p className="mb-2 underline">Explanation:</p>
-              <ul className="space-y-1 text-gray-400">
-                <li>OI → Odoo India (Company Name)</li>
-                <li>JODO → First two letters of the employee's first name and last name</li>
-                <li>2022 → Year of Joining</li>
-                <li>0001 → Serial Number of Joining for that Year</li>
-              </ul>
-            </div>
-
-            <div className="border border-gray-600 rounded-lg p-6 bg-[#151515]">
-              <div className="border border-gray-600 bg-[#222222] rounded px-4 py-1.5 inline-block mb-4 mx-auto w-full text-center">
-                <span className="text-lg font-['Indie_Flower',sans-serif] text-gray-300">Note</span>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-odoo-gray">
+                  <Lock size={16} />
+                </div>
+                <input
+                  id="password-input"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="clay-input w-full pl-9 pr-10 py-2.5 text-sm text-odoo-text placeholder-odoo-gray/60"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-odoo-gray hover:text-odoo-text transition-colors"
+                >
+                  {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                </button>
               </div>
-              <ul className="space-y-4 text-sm font-['Indie_Flower',sans-serif] text-gray-300 list-disc pl-4">
-                <li>Normal user cannot register, so when the HR officer or Admin creates a new user/employee, there ID should also be created with this method.</li>
-                <li>There password should be auto generated for the first time by the system.</li>
-                <li>They can login and change the system generated password.</li>
-              </ul>
             </div>
-          </div>
 
+            {/* Sign In Button */}
+            <div className="pt-2">
+              <button
+                id="sign-in-button"
+                type="submit"
+                disabled={loading}
+                className="clay-button-purple w-full py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {loading ? 'Signing in...' : (
+                  <>
+                    Sign In
+                    <ArrowRight size={16} strokeWidth={2.5} />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Bottom Note Card */}
+        <div
+          className="mt-4 bg-white rounded-2xl py-4 px-6 text-center"
+          style={{
+            boxShadow: '0 6px 20px -6px rgba(113, 75, 103, 0.08)',
+            border: '1px solid #f0eeef'
+          }}
+        >
+          <p className="text-xs text-odoo-gray mb-1">
+            New employee? Your account is created by HR/Admin.
+          </p>
+          <a
+            href="/create-employee"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-odoo-purple hover:text-odoo-purple-hover transition-colors"
+          >
+            HR/Admin <span className="text-[10px]">→</span> Create Employee
+          </a>
         </div>
       </div>
     </div>

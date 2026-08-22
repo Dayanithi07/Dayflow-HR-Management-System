@@ -274,91 +274,92 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen font-outfit flex flex-col" style={{ background: 'linear-gradient(180deg, #714B67 0%, #5c3d54 20%, #F7F7F7 50%)' }}>
-      {/* ─── Top Bar ─── */}
-      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <img src="/favicon.svg" alt="Dayflow" className="w-9 h-9 object-contain" />
-          <div>
-            <h1 className="text-white font-bold text-[15px] leading-tight">Dayflow</h1>
-            <p className="text-white/60 text-[10px] font-medium">HRMS</p>
+      <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col flex-1">
+        {/* ─── Top Bar ─── */}
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img src="/favicon.svg" alt="Dayflow" className="w-9 h-9 object-contain" />
+            <div>
+              <h1 className="text-white font-bold text-[15px] leading-tight">Dayflow</h1>
+              <p className="text-white/60 text-[10px] font-medium">HRMS</p>
+            </div>
           </div>
-        </div>
-        {/* Avatar Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
-          >
-            {currentUser?.avatarUrl ? (
-              <img src={currentUser.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center text-white text-[11px] font-bold">
-                {getInitials(currentUser?.name || 'U')}
-              </div>
-            )}
-          </button>
-          {showDropdown && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-              <div
-                className="absolute right-0 top-11 w-48 bg-white rounded-xl py-2 z-50"
-                style={{ boxShadow: '0 10px 40px rgba(113,75,103,0.18)', border: '1px solid #f0eeef' }}
-              >
-                <button
-                  onClick={() => { setShowDropdown(false); navigate('/profile'); }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-odoo-text hover:bg-odoo-bg flex items-center gap-2.5 transition-colors"
-                >
-                  <User size={16} className="text-odoo-gray" /> My Profile
-                </button>
-                <div className="border-t border-odoo-border mx-3 my-1" />
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
-                >
-                  <LogOut size={16} /> Log Out
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Tabs ─── */}
-      <div className="px-5 mb-4">
-        <div className="flex bg-white/15 backdrop-blur-sm rounded-xl p-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 text-[13px] font-semibold rounded-lg transition-all duration-200 ${
-                activeTab === tab
-                  ? 'bg-white text-odoo-text shadow-sm'
-                  : 'text-white/80 hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── Main Content Area ─── */}
-      <div className="flex-1 px-4 pb-20">
-        {/* Search Bar */}
-        <div className="mb-4">
+          {/* Avatar Dropdown */}
           <div className="relative">
-            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-odoo-gray" />
-            <input
-              id="employee-search"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={activeTab === 'Employees' ? 'Search Employees' : activeTab === 'Attendance' ? 'Search Attendance' : 'Search Time Off'}
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-sm text-odoo-text placeholder-odoo-gray/60 font-outfit"
-              style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
-            />
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
+            >
+              {currentUser?.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center text-white text-[11px] font-bold">
+                  {getInitials(currentUser?.name || 'U')}
+                </div>
+              )}
+            </button>
+            {showDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+                <div
+                  className="absolute right-0 top-11 w-48 bg-white rounded-xl py-2 z-50"
+                  style={{ boxShadow: '0 10px 40px rgba(113,75,103,0.18)', border: '1px solid #f0eeef' }}
+                >
+                  <button
+                    onClick={() => { setShowDropdown(false); navigate('/profile'); }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-odoo-text hover:bg-odoo-bg flex items-center gap-2.5 transition-colors"
+                  >
+                    <User size={16} className="text-odoo-gray" /> My Profile
+                  </button>
+                  <div className="border-t border-odoo-border mx-3 my-1" />
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
+                  >
+                    <LogOut size={16} /> Log Out
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
+
+        {/* ─── Tabs ─── */}
+        <div className="px-5 mb-4">
+          <div className="flex bg-white/15 backdrop-blur-sm rounded-xl p-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-[13px] font-semibold rounded-lg transition-all duration-200 ${
+                  activeTab === tab
+                    ? 'bg-white text-odoo-text shadow-sm'
+                    : 'text-white/80 hover:text-white'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── Main Content Area ─── */}
+        <div className="flex-1 px-4 pb-20">
+          {/* Search Bar */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-odoo-gray" />
+              <input
+                id="employee-search"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={activeTab === 'Employees' ? 'Search Employees' : activeTab === 'Attendance' ? 'Search Attendance' : 'Search Time Off'}
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-sm text-odoo-text placeholder-odoo-gray/60 font-outfit"
+                style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
+              />
+            </div>
+          </div>
 
         {/* ━━━ EMPLOYEES TAB ━━━ */}
         {activeTab === 'Employees' && (
@@ -947,6 +948,7 @@ function Dashboard() {
           </div>
         )}
       </div>
+    </div>
 
       {/* ─── Bottom Bar ─── */}
       <div
