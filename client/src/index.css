@@ -1,80 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-odoo-purple: #714B67;
-  --color-odoo-purple-hover: #5c3d54;
-  --color-odoo-purple-light: #f3ebf1;
-  --color-odoo-teal: #017E84;
-  --color-odoo-teal-hover: #01656a;
-  --color-odoo-teal-light: #e6f5f5;
-  --color-odoo-gray: #8F8F8F;
-  --color-odoo-bg: #F7F7F7;
-  --color-odoo-surface: #FFFFFF;
-  --color-odoo-text: #2B2B2B;
-  --color-odoo-border: #E2E8F0;
-  --font-outfit: 'Outfit', sans-serif;
+  --color-bg-base: #141414;
+  --color-bg-panel: #1c1c1c;
+  --color-border-subtle: #3a3a3a;
+  
+  --color-text-primary: #f2f2f2;
+  --color-text-muted: #9a9a9a;
+  
+  --color-accent-coral: #f4877e;
+  --color-accent-navy: #2e5c78;
+  --color-accent-purple: #b565d8;
+  --color-accent-maroon: #8b4a4a;
+  
+  --color-status-success: #4caf50;
+  --color-status-danger: #e57373;
+  --color-status-warning: #e0c341;
+  
+  --font-sans: 'Inter', sans-serif;
 }
 
 @layer base {
   body {
-    font-family: var(--font-outfit);
-    background-color: var(--color-odoo-bg);
-    color: var(--color-odoo-text);
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
   }
 }
 
-.clay-card {
-  background: #FFFFFF;
-  border-radius: 1rem;
-  box-shadow: 0 10px 25px -5px rgba(113, 75, 103, 0.06), 0 8px 10px -6px rgba(113, 75, 103, 0.03);
-  border: 1px solid #f0eeef;
-  transition: all 0.2s ease-in-out;
-}
+@layer components {
+  .clay-card {
+    background-color: var(--color-bg-panel);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 0.75rem; /* rounded-xl */
+  }
 
-.clay-card:hover {
-  box-shadow: 0 14px 30px -5px rgba(113, 75, 103, 0.1), 0 10px 12px -6px rgba(113, 75, 103, 0.05);
-}
+  .clay-button-purple {
+    background-color: var(--color-accent-purple);
+    color: #ffffff;
+    transition: all 0.2s;
+  }
+  
+  .clay-button-purple:hover {
+    opacity: 0.9;
+  }
 
-.clay-button-purple {
-  background-color: #714B67;
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(113, 75, 103, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.15s ease-in-out;
-  cursor: pointer;
-}
+  .clay-input {
+    background-color: var(--color-bg-panel);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 0.5rem;
+    color: var(--color-text-primary);
+    transition: border-color 0.15s ease;
+  }
 
-.clay-button-purple:hover {
-  background-color: #5c3d54;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(113, 75, 103, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.clay-button-teal {
-  background-color: #017E84;
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(1, 126, 132, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.15s ease-in-out;
-  cursor: pointer;
-}
-
-.clay-button-teal:hover {
-  background-color: #01656a;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(1, 126, 132, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.clay-input {
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 0.75rem;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.15s ease;
-  font-family: var(--font-outfit);
-}
-
-.clay-input:focus {
-  outline: none;
-  border-color: #714B67;
-  box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.12);
+  .clay-input:focus {
+    outline: none;
+    border-color: var(--color-accent-purple);
+  }
 }
