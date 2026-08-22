@@ -115,5 +115,3 @@ npm run dev
 
 ---
 
-## 📄 License
-This project is developed for the Hackathon - NMIT DayFlow HRMS challenge.
