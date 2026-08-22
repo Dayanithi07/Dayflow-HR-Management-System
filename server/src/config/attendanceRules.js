@@ -1,0 +1,4 @@
+export const ATTENDANCE_THRESHOLDS = {
+  FULL_DAY_HOURS: 8,
+  HALF_DAY_HOURS: 4
+};

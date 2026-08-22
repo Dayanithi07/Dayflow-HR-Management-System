@@ -6,6 +6,8 @@ import employeeRoutes from './routes/employees.js';
 import attendanceRoutes from './routes/attendance.js';
 import leaveRoutes from './routes/leaves.js';
 import payrollRoutes from './routes/payroll.js';
+import documentsRoutes from './routes/documents.js';
+import notificationsRoutes from './routes/notifications.js';
 
 dotenv.config();
 
@@ -22,6 +24,8 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/documents', documentsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

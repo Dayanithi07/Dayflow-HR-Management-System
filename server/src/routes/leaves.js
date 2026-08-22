@@ -49,6 +49,17 @@ router.post('/apply', authenticateToken, async (req, res) => {
       }
     });
 
+    // Notify all Admins
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+    const { sendNotification } = await import('../services/notificationService.js');
+    for (const admin of admins) {
+      await sendNotification({
+        employeeId: admin.id,
+        type: 'LEAVE',
+        message: `${req.user.name} has submitted a new leave request (${startDate} to ${endDate})`
+      });
+    }
+
     res.status(201).json({ message: 'Leave application submitted successfully', leaveRequest });
   } catch (error) {
     res.status(500).json({ message: 'Failed to submit leave application', error: error.message });
@@ -69,9 +80,19 @@ router.put('/:id/approval', authenticateToken, requireRole('ADMIN'), async (req,
       where: { id },
       data: {
         status,
-        adminComment
+        adminComment,
+        decisionTimestamp: new Date(),
+        decisionBy: req.user.name || req.user.email
       },
       include: { employee: true }
+    });
+
+    // Send in-app notification to the employee
+    const { sendNotification } = await import('../services/notificationService.js');
+    await sendNotification({
+      employeeId: updatedLeave.employeeId,
+      type: 'LEAVE',
+      message: `Your leave request from ${updatedLeave.startDate} to ${updatedLeave.endDate} was ${status.toLowerCase()} by Admin. ${adminComment ? `Comment: "${adminComment}"` : ''}`
     });
 
     // If approved, create attendance LEAVE record for the date range

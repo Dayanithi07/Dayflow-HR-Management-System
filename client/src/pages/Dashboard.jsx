@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Clock, Settings, ChevronRight, ChevronLeft, User, LogOut,
-  Plane, Calendar, Plus, Check, X, CalendarDays
+  Search, Clock, ChevronRight, ChevronLeft, User, LogOut,
+  Plane, Calendar, Plus, Check, X, CalendarDays, Bell,
+  BarChart3, FileSpreadsheet, Download, Users
 } from 'lucide-react';
 
 const API = 'http://localhost:5000/api';
@@ -108,9 +109,12 @@ function Dashboard() {
   const [attendanceMonth, setAttendanceMonth] = useState(new Date());
   const [attendanceDateFilter, setAttendanceDateFilter] = useState(getTodayString());
   const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [attendanceView, setAttendanceView] = useState('daily'); // 'daily' | 'weekly'
+  const [weeklyLogs, setWeeklyLogs] = useState([]);
+  const [loadingWeekly, setLoadingWeekly] = useState(false);
 
   // Time Off state
-  const [timeOffView, setTimeOffView] = useState('calendar'); // 'calendar' | 'list'
+  const [timeOffView, setTimeOffView] = useState('calendar');
   const [calendarYear, setCalendarYear] = useState(2026);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -118,6 +122,17 @@ function Dashboard() {
   const [leaveAttachment, setLeaveAttachment] = useState(null);
   const [loadingLeaves, setLoadingLeaves] = useState(false);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+
+  // Reports state (Admin)
+  const [reportStartDate, setReportStartDate] = useState(getTodayString());
+  const [reportEndDate, setReportEndDate] = useState(getTodayString());
+  const [reportEmployeeId, setReportEmployeeId] = useState('all');
+  const [reportData, setReportData] = useState([]);
+  const [loadingReport, setLoadingReport] = useState(false);
 
   // Live clock
   const [timeStr, setTimeStr] = useState('');
@@ -179,8 +194,35 @@ function Dashboard() {
     } catch { /* silent */ } finally { setLoadingLeaves(false); }
   }, []);
 
-  useEffect(() => { fetchEmployees(); fetchTodayStatus(); }, [fetchEmployees, fetchTodayStatus]);
-  useEffect(() => { if (activeTab === 'Attendance') fetchAttendanceLogs(); }, [activeTab, fetchAttendanceLogs]);
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/notifications`, { headers: authHeaders() });
+      if (res.ok) setNotifications(await res.json());
+    } catch { /* silent */ }
+  }, []);
+
+  // Fetch weekly attendance
+  const fetchWeeklyAttendance = useCallback(async () => {
+    setLoadingWeekly(true);
+    try {
+      const res = await fetch(`${API}/attendance/weekly`, { headers: authHeaders() });
+      if (res.ok) setWeeklyLogs(await res.json());
+    } catch { /* silent */ } finally { setLoadingWeekly(false); }
+  }, []);
+
+  // Fetch report data
+  const fetchReport = useCallback(async () => {
+    setLoadingReport(true);
+    try {
+      const params = `?startDate=${reportStartDate}&endDate=${reportEndDate}&employeeId=${reportEmployeeId}`;
+      const res = await fetch(`${API}/attendance/report${params}`, { headers: authHeaders() });
+      if (res.ok) setReportData(await res.json());
+    } catch { /* silent */ } finally { setLoadingReport(false); }
+  }, [reportStartDate, reportEndDate, reportEmployeeId]);
+
+  useEffect(() => { fetchEmployees(); fetchTodayStatus(); fetchNotifications(); }, [fetchEmployees, fetchTodayStatus, fetchNotifications]);
+  useEffect(() => { if (activeTab === 'Attendance') { fetchAttendanceLogs(); if (attendanceView === 'weekly') fetchWeeklyAttendance(); } }, [activeTab, fetchAttendanceLogs, attendanceView, fetchWeeklyAttendance]);
   useEffect(() => { if (activeTab === 'Time Off') fetchLeaves(); }, [activeTab, fetchLeaves]);
 
   /* ─── Employee Status Helper ─── */
@@ -270,7 +312,36 @@ function Dashboard() {
     return sum + Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1;
   }, 0);
 
-  const tabs = ['Employees', 'Attendance', 'Time Off'];
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Analytics calculations
+  const presentToday = todayAttendance.filter(a => a.status === 'PRESENT' || a.status === 'HALF_DAY').length;
+  const absentToday = employees.length - presentToday - todayLeaves.length;
+  const pendingLeaves = leaveRequests.filter(l => l.status === 'PENDING').length;
+
+  // CSV Export helper
+  const exportCSV = () => {
+    if (!reportData.length) return;
+    const header = 'Employee,Employee ID,Date,Check In,Check Out,Hours,Status\n';
+    const rows = reportData.map(r =>
+      `"${r.employee?.name || ''}","${r.employee?.employeeId || ''}","${r.date}","${formatTime(r.checkIn)}","${formatTime(r.checkOut)}","${formatHours(r.totalHours)}","${r.status}"`
+    ).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `attendance_report_${reportStartDate}_${reportEndDate}.csv`;
+    a.click();
+  };
+
+  // Mark notification as read
+  const markRead = async (nid) => {
+    try {
+      await fetch(`${API}/notifications/${nid}/read`, { method: 'PUT', headers: authHeaders() });
+      setNotifications(prev => prev.map(n => n.id === nid ? { ...n, read: true } : n));
+    } catch { /* silent */ }
+  };
+
+  const tabs = isAdmin ? ['Employees', 'Attendance', 'Time Off', 'Analytics', 'Reports'] : ['Employees', 'Attendance', 'Time Off'];
 
   return (
     <div className="min-h-screen font-outfit flex flex-col" style={{ background: 'linear-gradient(180deg, #714B67 0%, #5c3d54 20%, #F7F7F7 50%)' }}>
@@ -284,8 +355,20 @@ function Dashboard() {
               <p className="text-white/60 text-[10px] font-medium">HRMS</p>
             </div>
           </div>
-          {/* Avatar Dropdown */}
-          <div className="relative">
+          {/* Notification Bell + Avatar */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setShowNotifPanel(!showNotifPanel)}
+              className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center cursor-pointer relative"
+            >
+              <Bell size={18} className="text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            <div className="relative">
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center cursor-pointer"
@@ -321,7 +404,38 @@ function Dashboard() {
                 </div>
               </>
             )}
+            </div>
           </div>
+
+          {/* Notification Panel */}
+          {showNotifPanel && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowNotifPanel(false)} />
+              <div
+                className="absolute right-5 top-16 w-72 max-h-80 overflow-y-auto bg-white rounded-xl py-2 z-50"
+                style={{ boxShadow: '0 10px 40px rgba(113,75,103,0.18)', border: '1px solid #f0eeef' }}
+              >
+                <div className="px-4 py-2 border-b border-odoo-border flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-odoo-text">Notifications</h4>
+                  <span className="text-[10px] text-odoo-gray">{unreadCount} unread</span>
+                </div>
+                {notifications.length === 0 ? (
+                  <p className="text-center text-xs text-odoo-gray py-6">No notifications yet</p>
+                ) : (
+                  notifications.slice(0, 15).map(n => (
+                    <div
+                      key={n.id}
+                      onClick={() => markRead(n.id)}
+                      className={`px-4 py-2.5 border-b border-odoo-border/50 cursor-pointer hover:bg-odoo-bg transition-colors ${!n.read ? 'bg-purple-50/40' : ''}`}
+                    >
+                      <p className="text-[11px] text-odoo-text leading-snug">{n.message}</p>
+                      <p className="text-[9px] text-odoo-gray mt-0.5">{new Date(n.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* ─── Tabs ─── */}
@@ -940,6 +1054,164 @@ function Dashboard() {
                           </tr>
                         ))
                       )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ━━━ ANALYTICS TAB (Admin Only) ━━━ */}
+        {activeTab === 'Analytics' && isAdmin && (
+          <div className="space-y-4">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Total Employees', value: employees.length, icon: Users, color: '#714B67', bg: '#f3eef2' },
+                { label: 'Present Today', value: presentToday, icon: Check, color: '#017E84', bg: '#e6f5f5' },
+                { label: 'Absent Today', value: Math.max(0, absentToday), icon: X, color: '#e74c3c', bg: '#fde8e8' },
+                { label: 'On Leave Today', value: todayLeaves.length, icon: Plane, color: '#3498db', bg: '#e8f4fd' },
+                { label: 'Pending Leaves', value: pendingLeaves, icon: Clock, color: '#f39c12', bg: '#fef9e7' },
+                { label: 'Attendance Rate', value: employees.length > 0 ? Math.round((presentToday / employees.length) * 100) + '%' : '0%', icon: BarChart3, color: '#714B67', bg: '#f3eef2' },
+              ].map((card, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl px-4 py-3.5 flex items-center gap-3"
+                  style={{ boxShadow: '0 2px 10px rgba(113,75,103,0.06)', border: '1px solid #f0eeef' }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: card.bg }}
+                  >
+                    <card.icon size={18} style={{ color: card.color }} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-odoo-gray font-medium">{card.label}</p>
+                    <p className="text-lg font-bold text-odoo-text">{card.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Recent Activity Feed */}
+            <div
+              className="bg-white rounded-2xl overflow-hidden"
+              style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.06)', border: '1px solid #f0eeef' }}
+            >
+              <div className="px-4 py-3 border-b border-odoo-border" style={{ background: 'linear-gradient(135deg, #714B67, #5c3d54)' }}>
+                <h3 className="text-white font-semibold text-sm">Recent Activity</h3>
+              </div>
+              <div className="divide-y divide-odoo-border/50 max-h-64 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="text-center text-xs text-odoo-gray py-6">No recent activity</p>
+                ) : (
+                  notifications.slice(0, 10).map(n => (
+                    <div key={n.id} className="px-4 py-2.5 hover:bg-odoo-bg/30 transition-colors">
+                      <p className="text-[11px] text-odoo-text">{n.message}</p>
+                      <p className="text-[9px] text-odoo-gray mt-0.5">
+                        {new Date(n.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ━━━ REPORTS TAB (Admin Only) ━━━ */}
+        {activeTab === 'Reports' && isAdmin && (
+          <div className="space-y-4">
+            {/* Report Filters */}
+            <div
+              className="bg-white rounded-2xl p-4"
+              style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.06)', border: '1px solid #f0eeef' }}
+            >
+              <h3 className="text-sm font-bold text-odoo-text mb-3">Attendance Report Builder</h3>
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-semibold text-odoo-gray mb-1">Employee</label>
+                  <select
+                    value={reportEmployeeId}
+                    onChange={(e) => setReportEmployeeId(e.target.value)}
+                    className="clay-input w-full px-2 py-1.5 text-xs"
+                  >
+                    <option value="all">All Employees</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-odoo-gray mb-1">Start Date</label>
+                  <input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="clay-input w-full px-2 py-1.5 text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-odoo-gray mb-1">End Date</label>
+                  <input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="clay-input w-full px-2 py-1.5 text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={fetchReport}
+                  disabled={loadingReport}
+                  className="clay-button-purple px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  <FileSpreadsheet size={14} /> {loadingReport ? 'Loading...' : 'Generate Report'}
+                </button>
+                {reportData.length > 0 && (
+                  <button
+                    onClick={exportCSV}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold border border-odoo-border text-odoo-teal hover:bg-odoo-teal-light flex items-center gap-1.5 transition-colors"
+                  >
+                    <Download size={14} /> Export CSV
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Report Results Table */}
+            {reportData.length > 0 && (
+              <div
+                className="bg-white rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.06)', border: '1px solid #f0eeef' }}
+              >
+                <div className="px-4 py-3 border-b border-odoo-border" style={{ background: 'linear-gradient(135deg, #714B67, #5c3d54)' }}>
+                  <h3 className="text-white font-semibold text-sm">Report Results ({reportData.length} records)</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-odoo-border bg-odoo-bg/50">
+                        <th className="text-left px-4 py-2.5 font-semibold text-odoo-text text-xs">Employee</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-odoo-text text-xs">Date</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-odoo-text text-xs">Check In</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-odoo-text text-xs">Check Out</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-odoo-text text-xs">Hours</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-odoo-text text-xs">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.map((r) => (
+                        <tr key={r.id} className="border-b border-odoo-border/50 hover:bg-odoo-bg/30 transition-colors">
+                          <td className="px-4 py-2.5 text-odoo-text font-medium">{r.employee?.name || '—'}</td>
+                          <td className="px-4 py-2.5 text-odoo-text">{r.date}</td>
+                          <td className="px-4 py-2.5 text-odoo-text">{formatTime(r.checkIn)}</td>
+                          <td className="px-4 py-2.5 text-odoo-text">{formatTime(r.checkOut)}</td>
+                          <td className="px-4 py-2.5 text-odoo-text font-medium">{formatHours(r.totalHours)}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+                              r.status === 'PRESENT' ? 'bg-green-50 text-green-600' :
+                              r.status === 'HALF_DAY' ? 'bg-yellow-50 text-yellow-600' :
+                              r.status === 'LEAVE' ? 'bg-blue-50 text-blue-500' :
+                              'bg-red-50 text-red-500'
+                            }`}>
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

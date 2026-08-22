@@ -118,7 +118,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { phone, address, avatarUrl, department, position, baseSalary, name } = req.body;
+    const {
+      phone, address, avatarUrl, name, department, position, baseSalary,
+      dob, nationality, personalEmail, gender, maritalStatus,
+      bankAccountNo, bankName, ifscCode, panNo, uanNo
+    } = req.body;
 
     const isAdmin = req.user.role === 'ADMIN';
     const isSelf = req.user.id === id;
@@ -139,6 +143,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
       if (department !== undefined) updateData.department = department;
       if (position !== undefined) updateData.position = position;
       if (baseSalary !== undefined) updateData.baseSalary = parseFloat(baseSalary);
+      
+      // Personal & Bank Info
+      if (dob !== undefined) updateData.dob = dob;
+      if (nationality !== undefined) updateData.nationality = nationality;
+      if (personalEmail !== undefined) updateData.personalEmail = personalEmail;
+      if (gender !== undefined) updateData.gender = gender;
+      if (maritalStatus !== undefined) updateData.maritalStatus = maritalStatus;
+      if (bankAccountNo !== undefined) updateData.bankAccountNo = bankAccountNo;
+      if (bankName !== undefined) updateData.bankName = bankName;
+      if (ifscCode !== undefined) updateData.ifscCode = ifscCode;
+      if (panNo !== undefined) updateData.panNo = panNo;
+      if (uanNo !== undefined) updateData.uanNo = uanNo;
     }
 
     const updatedUser = await prisma.user.update({
@@ -155,8 +171,27 @@ router.put('/:id', authenticateToken, async (req, res) => {
         avatarUrl: true,
         phone: true,
         address: true,
-        baseSalary: true
+        baseSalary: true,
+        dob: true,
+        nationality: true,
+        personalEmail: true,
+        gender: true,
+        maritalStatus: true,
+        bankAccountNo: true,
+        bankName: true,
+        ifscCode: true,
+        panNo: true,
+        uanNo: true
       }
+    });
+
+    const { sendNotification } = await import('../services/notificationService.js');
+    await sendNotification({
+      employeeId: id,
+      type: 'PROFILE',
+      message: isAdmin && !isSelf 
+        ? 'Your profile was updated by the HR/Admin' 
+        : 'Profile details were successfully updated'
     });
 
     res.json({ message: 'Profile updated successfully', user: updatedUser });
