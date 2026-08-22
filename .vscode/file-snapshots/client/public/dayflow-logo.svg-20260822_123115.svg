@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 768" role="img" aria-labelledby="title desc">
+  <title id="title">Dayflow HRMS</title>
+  <desc id="desc">Dayflow HRMS logo with a flowing arrow mark</desc>
+  <defs>
+    <linearGradient id="mark" x1="18%" y1="88%" x2="88%" y2="14%">
+      <stop offset="0" stop-color="#714b67"/>
+      <stop offset="1" stop-color="#017e84"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(178 176) scale(1.15)">
+    <path d="M180 380Q100 380 100 300Q100 220 180 200h20q-60 30-60 100 0 60 60 70Z" fill="url(#mark)"/>
+    <path d="M180 380q40 0 60-40l40-80q20-40 60-50" fill="none" stroke="url(#mark)" stroke-width="32" stroke-linecap="round"/>
+    <path d="m340 180 50 30-50 30Z" fill="#017e84"/>
+    <circle cx="150" cy="180" r="12" fill="#714b67" opacity=".7"/>
+    <circle cx="180" cy="160" r="10" fill="#017e84" opacity=".6"/>
+    <circle cx="210" cy="148" r="8" fill="#017e84" opacity=".5"/>
+  </g>
+  <text x="384" y="540" text-anchor="middle" fill="#714b67" font-family="Arial, Helvetica, sans-serif" font-size="84" font-weight="700" letter-spacing="2">DAYFLOW</text>
+  <text x="384" y="606" text-anchor="middle" fill="#714b67" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" letter-spacing="2">HRMS</text>
+</svg>
