@@ -949,20 +949,7 @@ function Dashboard() {
         )}
       </div>
     </div>
-
-      {/* ─── Bottom Bar ─── */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-odoo-border py-3 px-6"
-        style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}
-      >
-        <div className="flex items-center justify-center max-w-[440px] mx-auto">
-          <button className="flex items-center gap-1.5 text-odoo-gray hover:text-odoo-text transition-colors">
-            <Settings size={18} />
-            <span className="text-sm font-medium">Settings</span>
-          </button>
-        </div>
-      </div>
-    </div>
+  </div>
   );
 }
 
