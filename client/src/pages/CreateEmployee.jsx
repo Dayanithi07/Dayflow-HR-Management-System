@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
-import { Building2, Mail, Phone, Copy, RefreshCw, Camera, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Mail, Phone, Copy, RefreshCw, Camera, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 function CreateEmployee() {
+  const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState(null);
   const [profilePreview, setProfilePreview] = useState(null);
   const fileInputRef = useRef(null);
@@ -117,6 +119,15 @@ function CreateEmployee() {
   return (
     <div className="min-h-screen bg-odoo-bg flex flex-col items-center py-8 px-4 font-outfit">
       <div className="w-full max-w-[440px] space-y-5">
+        {/* Back Button */}
+        <div className="flex justify-start">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-1.5 text-xs font-semibold text-odoo-purple hover:text-odoo-teal transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={14} /> Back to Dashboard
+          </button>
+        </div>
 
         {/* Logo */}
         <div className="flex justify-center">

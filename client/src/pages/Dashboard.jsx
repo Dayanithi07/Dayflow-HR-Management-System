@@ -461,17 +461,27 @@ function Dashboard() {
         <div className="flex-1 px-4 pb-20">
           {/* Search Bar */}
           <div className="mb-4">
-            <div className="relative">
-              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-odoo-gray" />
-              <input
-                id="employee-search"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={activeTab === 'Employees' ? 'Search Employees' : activeTab === 'Attendance' ? 'Search Attendance' : 'Search Time Off'}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-sm text-odoo-text placeholder-odoo-gray/60 font-outfit"
-                style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-odoo-gray" />
+                <input
+                  id="employee-search"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={activeTab === 'Employees' ? 'Search Employees' : activeTab === 'Attendance' ? 'Search Attendance' : 'Search Time Off'}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-sm text-odoo-text placeholder-odoo-gray/60 font-outfit"
+                  style={{ boxShadow: '0 4px 16px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
+                />
+              </div>
+              {activeTab === 'Employees' && isAdmin && (
+                <button
+                  onClick={() => navigate('/create-employee')}
+                  className="clay-button-purple px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus size={16} /> New
+                </button>
+              )}
             </div>
           </div>
 
