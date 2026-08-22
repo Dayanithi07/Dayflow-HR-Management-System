@@ -1,138 +1,320 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import api from '../lib/api';
-import useAuthStore from '../store/useAuthStore';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ArrowLeft, Mail, Phone, Building2, MapPin, Users,
+  Copy, Plus, Trash2, Settings, Home, Eye, EyeOff, ArrowRight,
+  CalendarDays, CreditCard, Shield, FileText, Lock
+} from 'lucide-react';
 
-const UnderlineField = ({ label, value, type = 'text', onChange, disabled = false }) => (
-  <div className="flex items-center gap-4 mb-4">
-    <label className="text-sm font-['Indie_Flower',sans-serif] text-gray-300 w-1/3 text-left">{label}</label>
-    <div className="flex-1">
-      <input
-        type={type}
-        value={value || ''}
-        onChange={onChange}
-        disabled={disabled}
-        className="w-full bg-transparent border-b border-gray-500 text-sm font-['Indie_Flower',sans-serif] text-white focus:outline-none focus:border-white pb-1"
-      />
-    </div>
-  </div>
-);
+const API = 'http://localhost:5000/api';
+function getToken() { return localStorage.getItem('token'); }
+function getUser() {
+  try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+}
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` };
+}
 
 function Profile() {
-  const { employeeId } = useParams();
-  const { user: currentUser } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('Resume');
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const currentUser = getUser();
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const isSelf = !id || id === currentUser?.id;
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  const isSelf = !employeeId || currentUser?.id === employeeId;
-  const targetId = isSelf ? 'me' : employeeId;
 
+  const tabs = isSelf
+    ? ['Resume', 'Private Info', ...(isAdmin ? ['Salary Info'] : []), 'Security']
+    : ['Resume', 'Private Info', ...(isAdmin ? ['Salary Info'] : [])];
+
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'Salary Info' : 'Private Info');
+
+  /* ─── Fetch Profile ─── */
   useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      try {
+        const endpoint = isSelf ? `${API}/auth/me` : `${API}/employees/${id}`;
+        const res = await fetch(endpoint, { headers: authHeaders() });
+        if (res.ok) setProfile(await res.json());
+      } catch { /* silent */ } finally { setLoading(false); }
+    };
     fetchProfile();
-  }, [targetId]);
+  }, [id, isSelf]);
 
-  const fetchProfile = async () => {
+  /* ─── Salary Auto-Calculation Engine ─── */
+  const monthWage = profile?.baseSalary || 50000;
+  const salary = useMemo(() => {
+    const basic = monthWage * 0.50;
+    const hra = basic * 0.50;
+    const standardAllowance = monthWage * 0.0833;
+    const performanceBonus = monthWage * 0.0583;
+    const lta = monthWage * 0.0583;
+    const totalComponents = basic + hra + standardAllowance + performanceBonus + lta;
+    const fixedAllowance = Math.max(0, monthWage - totalComponents);
+
+    const pfEmployee = basic * 0.12;
+    const pfEmployer = basic * 0.12;
+    const professionalTax = 200;
+
+    const grossSalary = monthWage;
+    const totalDeductions = pfEmployee + professionalTax;
+    const netSalary = grossSalary - totalDeductions;
+
+    return {
+      monthWage,
+      yearlyWage: monthWage * 12,
+      components: [
+        { name: 'Basic Salary', percent: '50%', desc: 'Monthly Basic', amount: basic },
+        { name: 'House Rent Allowance', percent: '25%', desc: '50% of Basic', amount: hra },
+        { name: 'Standard Allowance', percent: '8.33%', desc: 'Monthly Std.', amount: standardAllowance },
+        { name: 'Performance Bonus', percent: '5.83%', desc: 'Monthly Bonus', amount: performanceBonus },
+        { name: 'Leave Travel Allowance', percent: '5.83%', desc: 'LTA', amount: lta },
+        { name: 'Fixed Allowance', percent: ((fixedAllowance / monthWage) * 100).toFixed(2) + '%', desc: 'Remainder', amount: fixedAllowance },
+      ],
+      deductions: {
+        'Provident Fund (PF) Contribution': [
+          { name: 'Employee PF (12% of Basic)', amount: pfEmployee },
+          { name: 'Employer PF (12% of Basic)', amount: pfEmployer },
+        ],
+        'Tax Deductions': [
+          { name: 'Professional Tax', amount: professionalTax },
+        ],
+      },
+      netSalary,
+      totalDeductions,
+    };
+  }, [monthWage]);
+
+  /* ─── Change Password State (Security Tab) ─── */
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPwError(''); setPwSuccess('');
+    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwError('Passwords do not match'); return; }
+    if (pwForm.newPassword.length < 8) { setPwError('Password must be at least 8 characters'); return; }
+    setPwLoading(true);
     try {
-      const res = await api.get(`/employees/${targetId}`);
-      setProfile(res.data);
-    } catch (err) {
-      // Mock Data
-      setProfile({
-        profile: {
-          full_name: 'My Name',
-          job_title: 'Job Position',
-          email: 'Email',
-          phone: 'Mobile',
-          department: 'Department',
-          location: 'Location',
-          date_of_birth: '1990-01-01',
-          residing_address: '123 Street',
-          nationality: 'Indian',
-          personal_email: 'personal@email.com',
-          gender: 'Male',
-          marital_status: 'Single',
-          date_of_joining: '2022-01-01'
-        },
-        resume: {
-          about: 'Lorem Ipsum is simply dummy text...',
-          what_i_love_about_my_job: 'Lorem Ipsum is simply dummy text...',
-          interests_and_hobbies: 'Lorem Ipsum is simply dummy text...'
-        },
-        manager: {
-          full_name: 'Manager Name'
-        }
+      const res = await fetch(`${API}/auth/change-password`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword })
       });
-    } finally {
-      setLoading(false);
-    }
+      const data = await res.json();
+      if (!res.ok) { setPwError(data.message || 'Failed'); return; }
+      setPwSuccess('Password updated successfully!');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch { setPwError('Unable to connect to server'); } finally { setPwLoading(false); }
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-400 font-['Indie_Flower',sans-serif]">Loading profile...</div>;
+    return (
+      <div className="min-h-screen bg-odoo-bg font-outfit flex items-center justify-center">
+        <p className="text-odoo-gray text-sm">Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-odoo-bg font-outfit flex items-center justify-center">
+        <p className="text-odoo-gray text-sm">Profile not found</p>
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 mx-4">
-      <div className="border border-gray-600 bg-[#111111] w-full max-w-6xl mx-auto">
-        {/* Header Title */}
-        <div className="border-b border-gray-600 px-4 py-2">
-          <h1 className="text-lg font-['Indie_Flower',sans-serif] text-white">My Profile</h1>
+    <div className="min-h-screen bg-odoo-bg font-outfit pb-24">
+      {/* Header */}
+      <div className="bg-white border-b border-odoo-border px-5 py-4">
+        <div className="max-w-[600px] mx-auto flex items-center gap-3">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-8 h-8 rounded-lg bg-odoo-bg flex items-center justify-center text-odoo-gray hover:text-odoo-text transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <h1 className="text-lg font-bold text-odoo-text">{isSelf ? 'My Profile' : profile.name}</h1>
         </div>
+      </div>
 
-        {/* Profile Card Header */}
-        <div className="flex p-8 gap-8 border-b border-gray-600">
-          <div className="relative w-24 h-24 rounded-full bg-[#6d2f33] border border-gray-500 flex items-center justify-center">
-             <div className="w-10 h-10 border border-gray-900 rotate-45 flex items-center justify-center">
-               <div className="w-6 h-1 bg-gray-900 -rotate-45"></div>
-             </div>
-          </div>
-          
-          <div className="flex-1 flex gap-16">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-['Indie_Flower',sans-serif] text-white">{profile?.profile?.full_name}</h2>
-              <div className="space-y-1">
-                <UnderlineField label="Login ID" value="OIJODO20220001" disabled />
-                <UnderlineField label="Email" value={profile?.profile?.email} disabled />
-                <UnderlineField label="Mobile" value={profile?.profile?.phone} disabled />
+      <div className="max-w-[600px] mx-auto px-4 pt-5 space-y-4">
+        {/* Profile Card */}
+        <div
+          className="bg-white rounded-2xl p-5"
+          style={{
+            boxShadow: '0 10px 40px -10px rgba(113,75,103,0.10), 0 4px 12px -4px rgba(113,75,103,0.05)',
+            border: '1px solid #f0eeef'
+          }}
+        >
+          <div className="flex items-start gap-4">
+            {/* Avatar */}
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt={profile.name} className="w-16 h-16 rounded-full object-cover shrink-0" style={{ boxShadow: '0 4px 12px rgba(113,75,103,0.2)' }} />
+            ) : (
+              <div
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center text-white text-xl font-bold shrink-0"
+                style={{ boxShadow: '0 4px 12px rgba(113,75,103,0.2)' }}
+              >
+                {profile.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-bold text-odoo-text">{profile.name}</h2>
+              <div className="space-y-0.5 mt-1">
+                <p className="text-xs text-odoo-gray flex items-center gap-1.5">
+                  <FileText size={12} /> Position: <span className="font-medium text-odoo-text">{profile.position || '—'}</span>
+                </p>
+                <p className="text-xs text-odoo-gray flex items-center gap-1.5">
+                  <Mail size={12} /> Email: <span className="font-medium text-odoo-text">{profile.email}</span>
+                </p>
+                <p className="text-xs text-odoo-gray flex items-center gap-1.5">
+                  <Phone size={12} /> Mobile: <span className="font-medium text-odoo-text">{profile.phone || '—'}</span>
+                </p>
               </div>
             </div>
-            
-            <div className="space-y-2">
-               <UnderlineField label="Company" value="Odoo India" disabled />
-               <UnderlineField label="Department" value={profile?.profile?.department} disabled />
-               <UnderlineField label="Manager" value={profile?.manager?.full_name} disabled />
-               <UnderlineField label="Location" value={profile?.profile?.location} disabled />
-            </div>
+          </div>
+
+          {/* Info Chips */}
+          <div className="grid grid-cols-4 gap-2.5 mt-5">
+            {[
+              { icon: Building2, label: 'Company:', value: 'Dayflow HRMS' },
+              { icon: Users, label: 'Department:', value: profile.department || '—' },
+              { icon: Users, label: 'Manager:', value: '—' },
+              { icon: MapPin, label: 'Location:', value: profile.address?.split(',').pop()?.trim() || '—' },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="rounded-xl px-3 py-2.5 text-center"
+                style={{ border: '1px solid #e2e8f0', background: '#fafafa' }}
+              >
+                <p className="text-[10px] text-odoo-gray leading-tight">{item.label}</p>
+                <p className="text-[12px] font-semibold text-odoo-text mt-0.5 leading-tight truncate">{item.value}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-600 px-4 mt-4">
-          {['Resume', 'Private Info', 'Salary Info', 'Security'].map(tab => (
+        {/* Tab Bar */}
+        <div className="flex border-b border-odoo-border bg-white rounded-t-xl overflow-hidden">
+          {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1 border border-gray-600 border-b-0 font-['Indie_Flower',sans-serif] text-sm ${
-                activeTab === tab ? 'bg-[#151515] text-white' : 'text-gray-400 hover:text-white bg-transparent'
+              className={`flex-1 py-3 text-sm font-medium transition-all relative ${
+                activeTab === tab
+                  ? 'text-odoo-text'
+                  : 'text-odoo-gray hover:text-odoo-text'
               }`}
             >
               {tab}
+              {activeTab === tab && (
+                <div className="absolute bottom-0 left-1/4 right-1/4 h-[2.5px] bg-odoo-purple rounded-full" />
+              )}
             </button>
           ))}
         </div>
 
-<<<<<<< HEAD
-        {/* Salary Info Tab */}
-        {activeTab === 'Salary Info' && (
+        {/* ━━━ RESUME TAB ━━━ */}
+        {activeTab === 'Resume' && (
+          <div
+            className="bg-white rounded-2xl p-6"
+            style={{ boxShadow: '0 8px 30px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
+          >
+            <h3 className="text-lg font-semibold text-odoo-text mb-4">Resume</h3>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-odoo-text mb-2">About</h4>
+                <p className="text-xs text-odoo-gray leading-relaxed">
+                  {profile.name} works as {profile.position || 'a team member'} in the {profile.department || 'company'} department.
+                </p>
+              </div>
+              <div className="border-t border-odoo-border pt-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-odoo-text">Skills</h4>
+                  {isSelf && (
+                    <button className="text-odoo-teal text-xs font-semibold flex items-center gap-0.5 hover:text-odoo-teal-hover transition-colors">
+                      <Plus size={14} /> Add
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-odoo-gray mt-2">No skills added yet</p>
+              </div>
+              <div className="border-t border-odoo-border pt-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-odoo-text">Certifications</h4>
+                  {isSelf && (
+                    <button className="text-odoo-teal text-xs font-semibold flex items-center gap-0.5 hover:text-odoo-teal-hover transition-colors">
+                      <Plus size={14} /> Add
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-odoo-gray mt-2">No certifications added yet</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ━━━ PRIVATE INFO TAB ━━━ */}
+        {activeTab === 'Private Info' && (
+          <div
+            className="bg-white rounded-2xl p-6"
+            style={{ boxShadow: '0 8px 30px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
+          >
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              {/* Personal Info Column */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-odoo-text border-b border-odoo-border pb-2">Personal Information</h4>
+                {[
+                  { label: 'Date of Birth', value: '—' },
+                  { label: 'Residing Address', value: profile.address || '—' },
+                  { label: 'Nationality', value: '—' },
+                  { label: 'Personal Email', value: profile.email || '—' },
+                  { label: 'Gender', value: '—' },
+                  { label: 'Marital Status', value: '—' },
+                  { label: 'Date of Joining', value: profile.joinDate ? new Date(profile.joinDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—' },
+                ].map((field, i) => (
+                  <div key={i}>
+                    <p className="text-[11px] text-odoo-gray font-medium">{field.label}</p>
+                    <p className="text-sm text-odoo-text font-medium mt-0.5 pb-1.5 border-b border-odoo-border/50">{field.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bank & Work Details Column */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-odoo-text border-b border-odoo-border pb-2">Bank & Work Details</h4>
+                {[
+                  { label: 'Account Number', value: '—' },
+                  { label: 'Bank Name', value: '—' },
+                  { label: 'IFSC Code', value: '—' },
+                  { label: 'PAN No', value: '—' },
+                  { label: 'UAN No', value: '—' },
+                  { label: 'Emp Code', value: profile.employeeId || '—' },
+                ].map((field, i) => (
+                  <div key={i}>
+                    <p className="text-[11px] text-odoo-gray font-medium">{field.label}</p>
+                    <p className="text-sm text-odoo-text font-medium mt-0.5 pb-1.5 border-b border-odoo-border/50">{field.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ━━━ SALARY INFO TAB (Admin Only) ━━━ */}
+        {activeTab === 'Salary Info' && isAdmin && (
           <div className="space-y-4">
             {/* Salary Overview Card */}
             <div
               className="rounded-2xl overflow-hidden"
-              style={{
-                boxShadow: '0 8px 30px rgba(113,75,103,0.08)',
-                border: '1px solid #f0eeef'
-              }}
+              style={{ boxShadow: '0 8px 30px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
             >
               <div className="px-5 py-3" style={{ background: 'linear-gradient(135deg, #714B67, #5c3d54)' }}>
                 <h3 className="text-white font-semibold text-sm">Salary Info</h3>
@@ -143,10 +325,10 @@ function Profile() {
                   style={{ background: '#faf8f9', border: '1px solid #f0eeef' }}
                 >
                   {[
-                    { label: 'Month Wage:', value: PROFILE.monthWage.toLocaleString() },
-                    { label: 'Yearly wage:', value: PROFILE.yearlyWage.toLocaleString() },
-                    { label: 'Working days:', value: PROFILE.workingDays },
-                    { label: 'Break Time:', value: PROFILE.breakTime },
+                    { label: 'Month Wage:', value: `₹${salary.monthWage.toLocaleString('en-IN')}` },
+                    { label: 'Yearly Wage:', value: `₹${salary.yearlyWage.toLocaleString('en-IN')}` },
+                    { label: 'Working Days:', value: '22' },
+                    { label: 'Break Time:', value: '1 hr' },
                   ].map((item, i) => (
                     <div key={i} className="text-center">
                       <p className="text-[10px] text-odoo-gray">{item.label}</p>
@@ -162,10 +344,7 @@ function Profile() {
               {/* Salary Components */}
               <div
                 className="bg-white rounded-2xl p-4"
-                style={{
-                  boxShadow: '0 8px 30px rgba(113,75,103,0.08)',
-                  border: '1px solid #f0eeef'
-                }}
+                style={{ boxShadow: '0 8px 30px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-sm text-odoo-text">Salary Components</h4>
@@ -174,16 +353,16 @@ function Profile() {
                   </button>
                 </div>
                 <div className="space-y-3.5">
-                  {SALARY_COMPONENTS.map((comp, i) => (
+                  {salary.components.map((comp, i) => (
                     <div key={i}>
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="text-sm font-semibold text-odoo-text">{comp.name}</p>
                           <p className="text-[10px] text-odoo-gray">({comp.percent}) - {comp.desc}</p>
                         </div>
-                        <p className="text-sm font-bold text-odoo-text">{comp.amount.toLocaleString()}</p>
+                        <p className="text-sm font-bold text-odoo-text">₹{Math.round(comp.amount).toLocaleString('en-IN')}</p>
                       </div>
-                      {i < SALARY_COMPONENTS.length - 1 && (
+                      {i < salary.components.length - 1 && (
                         <div className="border-b border-odoo-border/50 mt-3" />
                       )}
                     </div>
@@ -194,10 +373,7 @@ function Profile() {
               {/* Deductions */}
               <div
                 className="bg-white rounded-2xl p-4"
-                style={{
-                  boxShadow: '0 8px 30px rgba(113,75,103,0.08)',
-                  border: '1px solid #f0eeef'
-                }}
+                style={{ boxShadow: '0 8px 30px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-sm text-odoo-text">Deductions</h4>
@@ -206,7 +382,7 @@ function Profile() {
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {Object.entries(DEDUCTIONS).map(([category, items], ci) => (
+                  {Object.entries(salary.deductions).map(([category, items], ci) => (
                     <div key={ci}>
                       <div
                         className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg mb-2"
@@ -220,103 +396,107 @@ function Profile() {
                       {items.map((item, ii) => (
                         <div key={ii} className="flex items-center justify-between py-1.5 px-1">
                           <p className="text-xs text-odoo-text">{item.name}</p>
-                          <p className="text-xs font-semibold text-odoo-text">{item.amount.toLocaleString()}</p>
+                          <p className="text-xs font-semibold text-odoo-text">₹{Math.round(item.amount).toLocaleString('en-IN')}</p>
                         </div>
                       ))}
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-
-            {/* About & Skills Row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* About Section */}
-              <div className="space-y-3">
-                <div
-                  className="bg-white rounded-2xl p-4"
-                  style={{
-                    boxShadow: '0 4px 16px rgba(113,75,103,0.06)',
-                    border: '1px solid #f0eeef'
-                  }}
-                >
-                  <h4 className="font-semibold text-sm text-odoo-text mb-2">About:</h4>
-                  <p className="text-[11px] text-odoo-gray leading-relaxed">{PROFILE.about}</p>
-                </div>
-                <div
-                  className="bg-white rounded-2xl p-4"
-                  style={{
-                    boxShadow: '0 4px 16px rgba(113,75,103,0.06)',
-                    border: '1px solid #f0eeef'
-                  }}
-                >
-                  <h4 className="font-semibold text-sm text-odoo-text mb-2">What I love about my job:</h4>
-                  <p className="text-[11px] text-odoo-gray leading-relaxed">{PROFILE.lovesAboutJob}</p>
-                </div>
-              </div>
-
-              {/* Skills & Certifications */}
-              <div className="space-y-3">
-                <div
-                  className="bg-white rounded-2xl p-4"
-                  style={{
-                    boxShadow: '0 4px 16px rgba(113,75,103,0.06)',
-                    border: '1px solid #f0eeef'
-                  }}
-                >
+                {/* Net Salary Summary */}
+                <div className="border-t border-odoo-border mt-4 pt-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm text-odoo-text">Skills</h4>
-                    <button className="text-odoo-teal text-xs font-semibold flex items-center gap-0.5 hover:text-odoo-teal-hover transition-colors">
-                      <Plus size={14} /> Add
-                    </button>
+                    <p className="text-sm font-semibold text-odoo-text">Net Salary</p>
+                    <p className="text-sm font-bold text-odoo-teal">₹{Math.round(salary.netSalary).toLocaleString('en-IN')}</p>
                   </div>
-                  <p className="text-[11px] text-odoo-gray mt-2">No skills added yet</p>
-                </div>
-                <div
-                  className="bg-white rounded-2xl p-4"
-                  style={{
-                    boxShadow: '0 4px 16px rgba(113,75,103,0.06)',
-                    border: '1px solid #f0eeef'
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm text-odoo-text">Certification</h4>
-                    <button className="text-odoo-teal text-xs font-semibold flex items-center gap-0.5 hover:text-odoo-teal-hover transition-colors">
-                      <Plus size={14} /> Add
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-odoo-gray mt-2">No certifications added yet</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Resume Tab */}
-        {activeTab === 'Resume' && (
+        {/* ━━━ SECURITY TAB ━━━ */}
+        {activeTab === 'Security' && isSelf && (
           <div
-            className="bg-white rounded-2xl p-6 text-center"
-            style={{
-              boxShadow: '0 8px 30px rgba(113,75,103,0.08)',
-              border: '1px solid #f0eeef'
-            }}
+            className="bg-white rounded-2xl p-6"
+            style={{ boxShadow: '0 8px 30px rgba(113,75,103,0.08)', border: '1px solid #f0eeef' }}
           >
-            <h3 className="text-lg font-semibold text-odoo-text mb-2">Resume</h3>
-            <p className="text-sm text-odoo-gray">Work experience and education details</p>
-          </div>
-        )}
+            <div className="flex items-center gap-2 mb-5">
+              <Lock size={18} className="text-odoo-purple" />
+              <h3 className="text-lg font-semibold text-odoo-text">Change Password</h3>
+            </div>
 
-        {/* Private Info Tab */}
-        {activeTab === 'Private Info' && (
-          <div
-            className="bg-white rounded-2xl p-6 text-center"
-            style={{
-              boxShadow: '0 8px 30px rgba(113,75,103,0.08)',
-              border: '1px solid #f0eeef'
-            }}
-          >
-            <h3 className="text-lg font-semibold text-odoo-text mb-2">Private Info</h3>
-            <p className="text-sm text-odoo-gray">Personal and emergency contact information</p>
+            {pwError && (
+              <div className="mb-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">{pwError}</div>
+            )}
+            {pwSuccess && (
+              <div className="mb-4 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm text-center">{pwSuccess}</div>
+            )}
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              {/* Current Password */}
+              <div>
+                <label className="block text-sm font-medium text-odoo-text mb-1.5">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showPw.current ? 'text' : 'password'}
+                    value={pwForm.currentPassword}
+                    onChange={(e) => setPwForm(p => ({ ...p, currentPassword: e.target.value }))}
+                    placeholder="Enter current password"
+                    className="clay-input w-full pl-4 pr-11 py-3 text-sm text-odoo-text placeholder-odoo-gray/60"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowPw(p => ({ ...p, current: !p.current }))} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-odoo-gray hover:text-odoo-text transition-colors">
+                    {showPw.current ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                </div>
+              </div>
+              {/* New Password */}
+              <div>
+                <label className="block text-sm font-medium text-odoo-text mb-1.5">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPw.new ? 'text' : 'password'}
+                    value={pwForm.newPassword}
+                    onChange={(e) => setPwForm(p => ({ ...p, newPassword: e.target.value }))}
+                    placeholder="Enter new password"
+                    className="clay-input w-full pl-4 pr-11 py-3 text-sm text-odoo-text placeholder-odoo-gray/60"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowPw(p => ({ ...p, new: !p.new }))} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-odoo-gray hover:text-odoo-text transition-colors">
+                    {showPw.new ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                </div>
+              </div>
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-medium text-odoo-text mb-1.5">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPw.confirm ? 'text' : 'password'}
+                    value={pwForm.confirmPassword}
+                    onChange={(e) => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                    placeholder="Re-enter new password"
+                    className="clay-input w-full pl-4 pr-11 py-3 text-sm text-odoo-text placeholder-odoo-gray/60"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowPw(p => ({ ...p, confirm: !p.confirm }))} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-odoo-gray hover:text-odoo-text transition-colors">
+                    {showPw.confirm ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={pwLoading}
+                className="clay-button-purple w-full py-3.5 rounded-xl text-white font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {pwLoading ? 'Updating...' : (
+                  <>
+                    Update Password
+                    <ArrowRight size={18} strokeWidth={2.5} />
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         )}
       </div>
@@ -347,76 +527,6 @@ function Profile() {
             <Settings size={20} />
             <span className="text-[10px] font-medium">Settings</span>
           </button>
-=======
-        {/* Content */}
-        <div className="p-8 bg-[#151515] min-h-[400px]">
-          {activeTab === 'Resume' && (
-             <div className="flex gap-8">
-               <div className="flex-1 space-y-6">
-                  <div className="border border-gray-600 p-4 relative">
-                     <span className="absolute -top-3 left-2 bg-[#151515] px-1 text-sm font-['Indie_Flower',sans-serif] text-white">About</span>
-                     <p className="text-sm font-['Indie_Flower',sans-serif] text-gray-400 mt-2">{profile?.resume?.about}</p>
-                  </div>
-                  <div className="border border-gray-600 p-4 relative">
-                     <span className="absolute -top-3 left-2 bg-[#151515] px-1 text-sm font-['Indie_Flower',sans-serif] text-white">What I love about my job</span>
-                     <p className="text-sm font-['Indie_Flower',sans-serif] text-gray-400 mt-2">{profile?.resume?.what_i_love_about_my_job}</p>
-                  </div>
-                  <div className="border border-gray-600 p-4 relative">
-                     <span className="absolute -top-3 left-2 bg-[#151515] px-1 text-sm font-['Indie_Flower',sans-serif] text-white">My interests and hobbies</span>
-                     <p className="text-sm font-['Indie_Flower',sans-serif] text-gray-400 mt-2">{profile?.resume?.interests_and_hobbies}</p>
-                  </div>
-               </div>
-               
-               <div className="w-64 space-y-6">
-                  <div className="border border-gray-600 p-4 min-h-[150px] relative">
-                     <span className="absolute -top-3 left-2 bg-[#151515] px-1 text-sm font-['Indie_Flower',sans-serif] text-white">Skills</span>
-                     <button className="text-xs font-['Indie_Flower',sans-serif] text-gray-400 mt-2 block">+ Add Skills</button>
-                  </div>
-                  <div className="border border-gray-600 p-4 min-h-[150px] relative">
-                     <span className="absolute -top-3 left-2 bg-[#151515] px-1 text-sm font-['Indie_Flower',sans-serif] text-white">Certification</span>
-                     <button className="text-xs font-['Indie_Flower',sans-serif] text-gray-400 mt-2 block">+ Add Skills</button>
-                  </div>
-               </div>
-             </div>
-          )}
-
-          {activeTab === 'Private Info' && (
-             <div className="grid grid-cols-2 gap-x-16 gap-y-2 max-w-4xl">
-                <div>
-                   <UnderlineField label="Date of Birth" value={profile?.profile?.date_of_birth} />
-                   <UnderlineField label="Residing Address" value={profile?.profile?.residing_address} />
-                   <UnderlineField label="Nationality" value={profile?.profile?.nationality} />
-                   <UnderlineField label="Personal Email" value={profile?.profile?.personal_email} />
-                   <UnderlineField label="Gender" value={profile?.profile?.gender} />
-                   <UnderlineField label="Marital Status" value={profile?.profile?.marital_status} />
-                   <UnderlineField label="Date of Joining" value={profile?.profile?.date_of_joining} />
-                </div>
-                <div>
-                   <h3 className="text-sm font-['Indie_Flower',sans-serif] text-white mb-4 underline">Bank Details</h3>
-                   <UnderlineField label="Account Number" value="" />
-                   <UnderlineField label="Bank Name" value="" />
-                   <UnderlineField label="IFSC Code" value="" />
-                   <UnderlineField label="PAN No" value="" />
-                   <UnderlineField label="UAN No" value="" />
-                   <UnderlineField label="Emp Code" value="" />
-                </div>
-             </div>
-          )}
-          
-          {activeTab === 'Salary Info' && (
-             <div className="text-center mt-10">
-                <p className="font-['Indie_Flower',sans-serif] text-gray-400">Salary Info tab Should only be visible to Admin</p>
-             </div>
-          )}
-          
-          {activeTab === 'Security' && (
-             <div className="max-w-md">
-                <UnderlineField label="Old Password" type="password" />
-                <UnderlineField label="New Password" type="password" />
-                <button className="bg-[#a352cc] text-black font-semibold py-1.5 px-4 rounded mt-4 text-sm font-['Indie_Flower',sans-serif]">Update</button>
-             </div>
-          )}
->>>>>>> e6474b0 (feat: implement authentication flow, protected routes, and core HR management pages with updated theme styling)
         </div>
       </div>
     </div>

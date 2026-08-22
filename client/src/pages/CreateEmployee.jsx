@@ -84,20 +84,21 @@ function CreateEmployee() {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('companyName', form.companyName);
-      formData.append('firstName', form.firstName);
-      formData.append('email', form.email);
-      formData.append('phone', form.phone);
-      formData.append('loginId', credentials.loginId);
-      formData.append('tempPassword', credentials.tempPassword);
-      if (profileImage) formData.append('profileImage', profileImage);
-
       const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/employees', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          firstName: form.firstName,
+          email: form.email,
+          phone: form.phone,
+          loginId: credentials.loginId,
+          tempPassword: credentials.tempPassword,
+          companyName: form.companyName
+        }),
       });
 
       const data = await res.json();

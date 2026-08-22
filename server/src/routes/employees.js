@@ -1,9 +1,62 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Create Employee (Admin only)
+router.post('/', authenticateToken, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { firstName, email, phone, loginId, tempPassword, companyName } = req.body;
+
+    if (!firstName || !email || !loginId || !tempPassword) {
+      return res.status(400).json({ message: 'First name, email, login ID, and temp password are required' });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { employeeId: loginId }]
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email or employee ID already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        employeeId: loginId,
+        email,
+        passwordHash,
+        name: firstName,
+        role: 'EMPLOYEE',
+        phone: phone || null,
+        department: 'Engineering',
+        position: 'Software Developer'
+      }
+    });
+
+    res.status(201).json({
+      message: 'Employee account created successfully',
+      user: {
+        id: user.id,
+        employeeId: user.employeeId,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        department: user.department,
+        position: user.position
+      }
+    });
+  } catch (error) {
+    console.error('Create employee error:', error);
+    res.status(500).json({ message: 'Failed to create employee', error: error.message });
+  }
+});
 
 // Get all employees (Admin / HR view)
 router.get('/', authenticateToken, async (req, res) => {
